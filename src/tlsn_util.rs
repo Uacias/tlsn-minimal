@@ -31,7 +31,7 @@ pub async fn run_tlsn_interactive(
         .parse()?;
     let server_ip: IpAddr = server_host.parse()?;
     let server_addr = SocketAddr::from((server_ip, server_port));
-    let uri_str = format!("https://{}:{}/formats/html", SERVER_DOMAIN, server_port);
+    let uri_str = format!("https://example.com");
     let uri: Uri = uri_str.parse()?;
     // Tworzymy połączenie duplex między Proverem a Verifierem
     // let (prover_socket, verifier_socket) = tokio::io::duplex(1 << 23);

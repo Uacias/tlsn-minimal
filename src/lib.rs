@@ -25,14 +25,4 @@ pub extern "C" fn say_hello() -> *const c_char {
     c_string.into_raw()
 }
 
-#[no_mangle]
-pub extern "C" fn free_rust_string(ptr: *mut c_char) {
-    if ptr.is_null() {
-        return;
-    }
-    unsafe {
-        drop(CString::from_raw(ptr));
-    }
-}
-
 
