@@ -12,10 +12,9 @@ pub extern "C" fn say_hello() -> *const c_char {
     let result = rt.block_on(async { run_tlsn_interactive().await });
 
     let output = match result {
-        Ok((sent, received, session_info)) => {
+        Ok(()) => {
             format!(
-                "TLSNotary verified!\nSession info: {:?}\nSent: {:?}\nReceived: {:?}",
-                session_info, sent, received
+                "TLSNotary verified!",
             )
         }
         Err(e) => format!("TLSNotary error: {:?}", e),

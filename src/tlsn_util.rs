@@ -12,7 +12,7 @@ use tlsn_examples::get_crypto_provider_with_server_fixture;
 use tlsn_prover::{Prover, ProverConfig};
 use tlsn_server_fixture_certs::SERVER_DOMAIN;
 use tlsn_verifier::{SessionInfo, Verifier, VerifierConfig};
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::{io::{AsyncRead, AsyncWrite}, net::TcpStream};
 use tokio_util::compat::{FuturesAsyncReadCompatExt, TokioAsyncReadCompatExt};
 use tracing::instrument;
 
@@ -23,7 +23,7 @@ const MAX_RECV_DATA: usize = 1 << 14;
 
 #[instrument]
 pub async fn run_tlsn_interactive(
-) -> Result<(Vec<u8>, Vec<u8>, SessionInfo), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error>> {
     // Pobranie ustawień serwera
     let server_host = env::var("SERVER_HOST").unwrap_or_else(|_| "127.0.0.1".into());
     let server_port: u16 = env::var("SERVER_PORT")
@@ -34,21 +34,24 @@ pub async fn run_tlsn_interactive(
     let uri_str = format!("https://{}:{}/formats/html", SERVER_DOMAIN, server_port);
     let uri: Uri = uri_str.parse()?;
     // Tworzymy połączenie duplex między Proverem a Verifierem
-    let (prover_socket, verifier_socket) = tokio::io::duplex(1 << 23);
+    // let (prover_socket, verifier_socket) = tokio::io::duplex(1 << 23);
 
+    let verifier_addr = "127.0.0.1:5555".parse::<SocketAddr>().unwrap();
+    let prover_socket = TcpStream::connect(verifier_addr).await.unwrap();
     // Uruchamiamy Provera i Verifiera równolegle
-    let prover_fut = run_prover(prover_socket, &server_addr, &uri);
 
-    let verifier_fut = run_verifier(verifier_socket);
+    // let verifier_fut = run_verifier(verifier_socket);
+    let prover_result = run_prover(prover_socket, &server_addr, &uri).await;
 
-    let (prover_result, verifier_result) = tokio::join!(prover_fut, verifier_fut);
+    // let (prover_result, verifier_result) = tokio::join!(prover_fut, verifier_fut);
 
     // Obsłuż błędy: jeśli prover nie zakończył się powodzeniem, zwróć błąd
     prover_result?;
 
-    let (sent, received, session_info) = verifier_result?;
+    // let (sent, received, session_info) = verifier_result?;
 
-    Ok((sent, received, session_info))
+    // Ok((sent, received, session_info))
+    Ok(())
 }
 
 #[instrument(skip(verifier_socket))]
@@ -110,28 +113,28 @@ where
     Ok(())
 }
 
-#[instrument(skip(socket))]
-async fn run_verifier<T>(
-    socket: T,
-) -> Result<(Vec<u8>, Vec<u8>, SessionInfo), Box<dyn std::error::Error>>
-where
-    T: AsyncWrite + AsyncRead + Send + Sync + Unpin + 'static,
-{
-    let config_validator = ProtocolConfigValidator::builder()
-        .max_sent_data(MAX_SENT_DATA)
-        .max_recv_data(MAX_RECV_DATA)
-        .build()?;
-    let verifier_config = VerifierConfig::builder()
-        .protocol_config_validator(config_validator)
-        .crypto_provider(get_crypto_provider_with_server_fixture())
-        .build()?;
-    let verifier = Verifier::new(verifier_config);
-    let (mut partial_transcript, session_info) = verifier.verify(socket.compat()).await?;
-    partial_transcript.set_unauthed(0);
-    let sent = partial_transcript.sent_unsafe().to_vec();
-    let received = partial_transcript.received_unsafe().to_vec();
-    Ok((sent, received, session_info))
-}
+// #[instrument(skip(socket))]
+// async fn run_verifier<T>(
+//     socket: T,
+// ) -> Result<(Vec<u8>, Vec<u8>, SessionInfo), Box<dyn std::error::Error>>
+// where
+//     T: AsyncWrite + AsyncRead + Send + Sync + Unpin + 'static,
+// {
+//     let config_validator = ProtocolConfigValidator::builder()
+//         .max_sent_data(MAX_SENT_DATA)
+//         .max_recv_data(MAX_RECV_DATA)
+//         .build()?;
+//     let verifier_config = VerifierConfig::builder()
+//         .protocol_config_validator(config_validator)
+//         .crypto_provider(get_crypto_provider_with_server_fixture())
+//         .build()?;
+//     let verifier = Verifier::new(verifier_config);
+//     let (mut partial_transcript, session_info) = verifier.verify(socket.compat()).await?;
+//     partial_transcript.set_unauthed(0);
+//     let sent = partial_transcript.sent_unsafe().to_vec();
+//     let received = partial_transcript.received_unsafe().to_vec();
+//     Ok((sent, received, session_info))
+// }
 
 // Funkcje pomocnicze
 
