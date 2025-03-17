@@ -1,0 +1,7 @@
+[package]
+name = "tlsn_test_lib"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tlsn-minimal = { path = "/Users/piotrstec/dev/tlsn-minimal"}
