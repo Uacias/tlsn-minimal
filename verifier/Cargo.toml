@@ -1,0 +1,20 @@
+[package]
+name = "verifier"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tlsn-common = { git = "https://github.com/tlsnotary/tlsn", tag = "v0.1.0-alpha.8", version = "0.1.0-alpha.8" }
+tlsn-core = { git = "https://github.com/tlsnotary/tlsn", tag = "v0.1.0-alpha.8", version = "0.1.0-alpha.8" }
+tlsn-examples = { git = "https://github.com/tlsnotary/tlsn", package = "tlsn-examples", tag = "v0.1.0-alpha.8" }
+tlsn-prover = { git = "https://github.com/tlsnotary/tlsn", tag = "v0.1.0-alpha.8", version = "0.1.0-alpha.8" }
+tlsn-verifier = { git = "https://github.com/tlsnotary/tlsn", tag = "v0.1.0-alpha.8", version = "0.1.0-alpha.8" }
+tlsn-server-fixture = { git = "https://github.com/tlsnotary/tlsn", package = "tlsn-server-fixture", tag = "v0.1.0-alpha.8", version = "0.0.0" }
+tlsn-server-fixture-certs = { git = "https://github.com/tlsnotary/tlsn", package = "tlsn-server-fixture-certs", tag = "v0.1.0-alpha.8", version = "0.0.0" }
+tokio = { version = "1.38", features = ["full"] }
+hyper = { version = "1.1", features = ["client"] }
+hyper-util = "0.1"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+tokio-util = { version = "0.7", features = ["compat"] }
+http-body-util = { version = "0.1" }
