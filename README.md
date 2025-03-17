@@ -86,3 +86,7 @@ Gotowe do testowania! 🚀
 [lib]
 crate-type = ["lib", "staticlib"]
 ```
+
+## **External readme**
+
+https://github.com/thombles/dw2019rust/blob/master/modules/02%20-%20Cross-compiling%20for%20Xcode.md
