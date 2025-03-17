@@ -3,6 +3,10 @@ name = "tlsn-minimal"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "verifier"
+path = "src/bin/verifier.rs"
+
 [dependencies]
 tlsn-common = { git = "https://github.com/tlsnotary/tlsn", tag = "v0.1.0-alpha.8", version = "0.1.0-alpha.8" }
 tlsn-core = { git = "https://github.com/tlsnotary/tlsn", tag = "v0.1.0-alpha.8", version = "0.1.0-alpha.8" }

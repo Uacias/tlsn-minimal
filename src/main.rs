@@ -1,6 +1,6 @@
 use std::{
     env,
-    net::{IpAddr, SocketAddr},
+    net::{IpAddr, SocketAddr}, time::Duration,
 };
 
 use http_body_util::Empty;
@@ -14,7 +14,10 @@ use tlsn_prover::{state::Prove, Prover, ProverConfig};
 use tlsn_server_fixture::DEFAULT_FIXTURE_PORT;
 use tlsn_server_fixture_certs::SERVER_DOMAIN;
 use tlsn_verifier::{SessionInfo, Verifier, VerifierConfig};
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::{
+    io::{AsyncRead, AsyncWrite},
+    net::TcpStream, time::sleep,
+};
 use tokio_util::compat::{FuturesAsyncReadCompatExt, TokioAsyncReadCompatExt};
 use tracing::instrument;
 
@@ -34,25 +37,32 @@ async fn main() {
         .map(|port| port.parse().expect("port should be valid integer"))
         .unwrap_or(DEFAULT_FIXTURE_PORT);
     println!("Using server host {} and port {}", server_host, server_port);
+    println!("xd1");
 
     // we use SERVER_DOMAIN here to make sure it matches the domain in the test
     // server's certificate
     let uri = format!("https://{SERVER_DOMAIN}:{server_port}/formats/html");
     let server_ip: IpAddr = server_host.parse().expect("Invalid IP address");
     let server_addr = SocketAddr::from((server_ip, server_port));
+    println!("xd2");
+
+    let verifier_addr = "127.0.0.1:5555".parse::<SocketAddr>().unwrap();
+    let prover_socket = TcpStream::connect(verifier_addr).await.unwrap();
+    println!("xd3");
 
     // Connect prover and verifier.
-    let (prover_socket, verifier_socket) = tokio::io::duplex(1 << 23);
-    let prover = prover(prover_socket, &server_addr, &uri);
-    let verifier = verifier(verifier_socket);
-    let (_, (sent, received, _session_info)) = tokio::join!(prover, verifier);
+    // let (prover_socket, verifier_socket) = tokio::io::duplex(1 << 23);
+    let prover = prover(prover_socket, &server_addr, &uri).await;
+    println!("xd4");
 
-    println!("Successfully verified {}", &uri);
-    println!("Verified sent data:\n{}", bytes_to_redacted_string(&sent));
-    println!(
-        "Verified received data:\n{}",
-        bytes_to_redacted_string(&received)
-    );
+    // let (_, (sent, received, _session_info)) = tokio::join!(prover, verifier);
+
+    // println!("Successfully verified {}", &uri);
+    // println!("Verified sent data:\n{}", bytes_to_redacted_string(&sent));
+    // println!(
+    //     "Verified received data:\n{}",
+    //     bytes_to_redacted_string(&received)
+    // );
 }
 
 #[instrument(skip(verifier_socket))]
@@ -64,7 +74,7 @@ async fn prover<T: AsyncWrite + AsyncRead + Send + Unpin + 'static>(
     let uri = uri.parse::<Uri>().unwrap();
     assert_eq!(uri.scheme().unwrap().as_str(), "https");
     let server_domain = uri.authority().unwrap().host();
-
+    println!("xd1");
     // Create prover and connect to verifier.
     //
     // Perform the setup phase with the verifier.
@@ -85,7 +95,12 @@ async fn prover<T: AsyncWrite + AsyncRead + Send + Unpin + 'static>(
     .setup(verifier_socket.compat())
     .await
     .unwrap();
+    println!("xd2");
 
+
+    println!("✅ Prover zakończył setup!");
+
+    
     // Connect to TLS Server.
     let tls_client_socket = tokio::net::TcpStream::connect(server_addr).await.unwrap();
 
@@ -133,47 +148,47 @@ async fn prover<T: AsyncWrite + AsyncRead + Send + Unpin + 'static>(
     prover.finalize().await.unwrap()
 }
 
-#[instrument(skip(socket))]
-async fn verifier<T: AsyncWrite + AsyncRead + Send + Sync + Unpin + 'static>(
-    socket: T,
-) -> (Vec<u8>, Vec<u8>, SessionInfo) {
-    // Setup Verifier.
-    let config_validator = ProtocolConfigValidator::builder()
-        .max_sent_data(MAX_SENT_DATA)
-        .max_recv_data(MAX_RECV_DATA)
-        .build()
-        .unwrap();
+// #[instrument(skip(socket))]
+// async fn verifier<T: AsyncWrite + AsyncRead + Send + Sync + Unpin + 'static>(
+//     socket: T,
+// ) -> (Vec<u8>, Vec<u8>, SessionInfo) {
+//     // Setup Verifier.
+//     let config_validator = ProtocolConfigValidator::builder()
+//         .max_sent_data(MAX_SENT_DATA)
+//         .max_recv_data(MAX_RECV_DATA)
+//         .build()
+//         .unwrap();
 
-    let verifier_config = VerifierConfig::builder()
-        .protocol_config_validator(config_validator)
-        .crypto_provider(get_crypto_provider_with_server_fixture())
-        .build()
-        .unwrap();
-    let verifier = Verifier::new(verifier_config);
+//     let verifier_config = VerifierConfig::builder()
+//         .protocol_config_validator(config_validator)
+//         .crypto_provider(get_crypto_provider_with_server_fixture())
+//         .build()
+//         .unwrap();
+//     let verifier = Verifier::new(verifier_config);
 
-    // Verify MPC-TLS and wait for (redacted) data.
-    let (mut partial_transcript, session_info) = verifier.verify(socket.compat()).await.unwrap();
-    partial_transcript.set_unauthed(0);
+//     // Verify MPC-TLS and wait for (redacted) data.
+//     let (mut partial_transcript, session_info) = verifier.verify(socket.compat()).await.unwrap();
+//     partial_transcript.set_unauthed(0);
 
-    // Check sent data:
-    let sent = partial_transcript.sent_unsafe().to_vec();
-    let sent_data = String::from_utf8(sent.clone()).expect("Verifier expected sent data");
-    sent_data
-        .find(SERVER_DOMAIN)
-        .unwrap_or_else(|| panic!("Verification failed: Expected host {}", SERVER_DOMAIN));
+//     // Check sent data:
+//     let sent = partial_transcript.sent_unsafe().to_vec();
+//     let sent_data = String::from_utf8(sent.clone()).expect("Verifier expected sent data");
+//     sent_data
+//         .find(SERVER_DOMAIN)
+//         .unwrap_or_else(|| panic!("Verification failed: Expected host {}", SERVER_DOMAIN));
 
-    // Check received data:
-    let received = partial_transcript.received_unsafe().to_vec();
-    let response = String::from_utf8(received.clone()).expect("Verifier expected received data");
-    response
-        .find("Herman Melville")
-        .unwrap_or_else(|| panic!("Expected valid data from {}", SERVER_DOMAIN));
+//     // Check received data:
+//     let received = partial_transcript.received_unsafe().to_vec();
+//     let response = String::from_utf8(received.clone()).expect("Verifier expected received data");
+//     response
+//         .find("Herman Melville")
+//         .unwrap_or_else(|| panic!("Expected valid data from {}", SERVER_DOMAIN));
 
-    // Check Session info: server name.
-    assert_eq!(session_info.server_name.as_str(), SERVER_DOMAIN);
+//     // Check Session info: server name.
+//     assert_eq!(session_info.server_name.as_str(), SERVER_DOMAIN);
 
-    (sent, received, session_info)
-}
+//     (sent, received, session_info)
+// }
 
 /// Returns the received ranges to be revealed to the verifier.
 fn revealed_ranges_received(prover: &mut Prover<Prove>) -> Idx {
